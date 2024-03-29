@@ -8,9 +8,13 @@
 #include "Adafruit_SHT31.h"
 #include <Adafruit_ADS1X15.h>
 #include <FastLED.h>
+#include <Preferences.h>
+
+Preferences preferences;
+
 
 #define BUTTON_PIN 0
-#define LED_PIN 2  
+#define LED_PIN 10  
 
 #define NUM_LEDS 1
 CRGB leds[NUM_LEDS];
@@ -26,7 +30,8 @@ const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = -14400;  //Replace with your GMT offset (secs)
 const int daylightOffset_sec = 0;   //Replace with your daylight offset (secs)
 int hours, mins, secs;
-int zebraR, zebraG, zebraB;
+int zebraR, zebraG, zebraB, menuValue;
+int sliderValue = 255;
 
 float tempSHT, humSHT;
 int16_t adc0, adc1, adc2, adc3;
@@ -34,6 +39,7 @@ float volts0, volts1, volts2, volts3;
 
 bool buttonstart = false;
 bool ledon = false;
+bool needssaving = false;
 
 char auth[] = "fEZlZOio7CS1nBXNm3A8HR5DysrzIoYW";
 
@@ -85,6 +91,7 @@ BLYNK_WRITE(V18)
      zebraR = param[0].asInt();
      zebraG = param[1].asInt();
      zebraB = param[2].asInt();
+     needssaving = true;
 }
 
 BLYNK_WRITE(V11)
@@ -93,8 +100,19 @@ BLYNK_WRITE(V11)
   if (param.asInt() == 0) {buttonstart = false;}
 }
 
+BLYNK_WRITE(V12)
+{
+   menuValue = param.asInt(); // assigning incoming value from pin V1 to a variable
+}
+
+BLYNK_WRITE(V13)
+{
+   sliderValue = param.asInt(); // assigning incoming value from pin V1 to a variable
+}
+
 BLYNK_CONNECTED() {
   Blynk.syncVirtual(V11);
+  Blynk.syncVirtual(V12);
 }
 
 void printLocalTime() {
@@ -105,21 +123,28 @@ void printLocalTime() {
   terminal.print(asctime(timeinfo));
 }
 
+void goToSleep(){
+    //esp_deep_sleep_enable_gpio_wakeup(1, ESP_GPIO_WAKEUP_GPIO_LOW);
+    esp_sleep_enable_timer_wakeup(50000000); // 55 sec
+    esp_deep_sleep_start(); 
+}
+
 void setup(void) {
   setCpuFrequencyMhz(80);
   
   pinMode(BUTTON_PIN, INPUT_PULLUP); //BUTTON PIN
   delay(2);
-  if (digitalRead(BUTTON_PIN) == LOW){ buttonstart = true;}
+  if (digitalRead(BUTTON_PIN) == LOW){ menuValue = 2;}
   FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
   Serial.begin(115200);
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   Serial.println("");
 
-  if (buttonstart){
+  if (menuValue == 2){
+    
     while (WiFi.status() != WL_CONNECTED) {
-      leds[0] = CRGB(3, 3, 0);
+      leds[0] = CRGB(30, 30, 0);
       FastLED.show();
       delay(250);
       leds[0] = CRGB(0, 0, 0);
@@ -129,13 +154,12 @@ void setup(void) {
     }
   }
   else {
-      while (WiFi.status() != WL_CONNECTED) {
-    }
+      while (WiFi.status() != WL_CONNECTED) {}
   }
   Blynk.config(auth, IPAddress(192, 168, 50, 197), 8080);
   Blynk.connect();
   while (!Blynk.connected()){}
-
+  
   
 
   Serial.println("");
@@ -144,15 +168,7 @@ void setup(void) {
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
-  if (buttonstart) {
-    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-      request->send(200, "text/plain", "Hi! I am ESP32.");
-    });
 
-    AsyncElegantOTA.begin(&server);    // Start ElegantOTA
-    server.begin();
-    Serial.println("HTTP server started");
-  }
 
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
@@ -179,23 +195,48 @@ void setup(void) {
   Blynk.virtualWrite(V3, volts2);
   Blynk.virtualWrite(V4, volts3);
   Blynk.virtualWrite(V5, WiFi.RSSI());
-  if (buttonstart){
-    terminal.println("***JoJu 1.1 STARTED***");
+  if (menuValue == 2){
+    terminal.println("***JoJu 1.2 STARTED***");
     terminal.print("Connected to ");
     terminal.println(ssid);
     terminal.print("IP address: ");
     terminal.println(WiFi.localIP());
     printLocalTime();
     terminal.println(volts3,3);
+    
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+      request->send(200, "text/plain", "Hi! I am ESP32.");
+    });
+
+    AsyncElegantOTA.begin(&server);    // Start ElegantOTA
+    server.begin();
+    terminal.println("HTTP server started");
     terminal.flush();
+    Blynk.run();
   }
   Blynk.run();
 
-  if (!buttonstart){
-    esp_deep_sleep_enable_gpio_wakeup(1, ESP_GPIO_WAKEUP_GPIO_LOW);
-    esp_sleep_enable_timer_wakeup(55000000); // 55 sec
-    esp_deep_sleep_start(); 
+
+  if (menuValue == 1){
+    pinMode(LED_PIN, INPUT);
+    goToSleep();
+
   }
+  if (menuValue == 3){
+    preferences.begin("my-app", false);
+    zebraR = preferences.getInt("zebraR", 0);
+    zebraG = preferences.getInt("zebraG", 0);
+    zebraB = preferences.getInt("zebraB", 0);
+    sliderValue = preferences.getInt("sliderValue", 0); 
+    preferences.end();
+    leds[0] = CRGB(zebraR, zebraG, zebraB);
+    FastLED.setBrightness(sliderValue);
+    FastLED.show();
+    goToSleep();
+  }
+
+
+
 }
 
 void loop() {
@@ -213,14 +254,25 @@ void loop() {
     Blynk.virtualWrite(V3, volts2);
     Blynk.virtualWrite(V4, volts3);
     Blynk.virtualWrite(V5, WiFi.RSSI());
+    if (needssaving) {
+        preferences.begin("my-app", false);
+        preferences.putInt("zebraR", zebraR);
+        preferences.putInt("zebraG", zebraG);
+        preferences.putInt("zebraB", zebraB);
+        preferences.putInt("sliderValue", sliderValue);
+        preferences.end();
+        terminal.println("RGB settings saved.");
+        terminal.flush();
+        needssaving = false;
+    }
     
   }
 
-  if (ledon){
+
     every(10){
       leds[0] = CRGB(zebraR, zebraG, zebraB);
+      FastLED.setBrightness(sliderValue);
       FastLED.show();
     }
-  }
 
 }
