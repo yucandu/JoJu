@@ -149,7 +149,8 @@ void setup(void) {
   wifi = WiFi.RSSI();
   Blynk.config(auth, IPAddress(192, 168, 50, 197), 8080);
   Blynk.connect();
-  while (!Blynk.connected()){delay(250);}
+  while ((!Blynk.connected()) && (millis() < 60000)){delay(250);}
+  Blynk.run();
   
   sht31.begin(0x44);
   ads.setGain(GAIN_ONE);  // 1x gain   +/- 4.096V  1 bit = 2mV      0.125mV
@@ -162,11 +163,16 @@ void setup(void) {
   volts3 = ads.computeVolts(adc3)*2.0;
 
   Blynk.virtualWrite(V1, tempSHT);
+  Blynk.run();
   Blynk.virtualWrite(V2, humSHT);
+  Blynk.run();
   Blynk.virtualWrite(V3, volts2);
+  Blynk.run();
   Blynk.virtualWrite(V4, volts3);
+  Blynk.run();
   Blynk.virtualWrite(V5, wifi);
-  Blynk.virtualWrite(V6, 0);
+  Blynk.run();
+
   if (buttonstart) {
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
@@ -195,7 +201,7 @@ void setup(void) {
   }
   Blynk.run();
 
-
+  delay(500);
   if (!buttonstart){
     pinMode(LED_PIN, INPUT);
     goToSleep();
