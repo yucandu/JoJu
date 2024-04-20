@@ -126,32 +126,17 @@ void printLocalTime() {
 
 void goToSleep(){
     //esp_deep_sleep_enable_gpio_wakeup(1, ESP_GPIO_WAKEUP_GPIO_LOW);
-    esp_sleep_enable_timer_wakeup(50000000); // 50 sec
+    WiFi.disconnect();
+    delay(1);
+    esp_sleep_enable_timer_wakeup(55000000); // 50 sec
     esp_deep_sleep_start(); 
+    delay(1000);
 }
 
 void setup(void) {
   setCpuFrequencyMhz(80);
-  
-  //pinMode(BUTTON_PIN, INPUT_PULLUP); //BUTTON PIN
   delay(2);
-  //if (digitalRead(BUTTON_PIN) == LOW){ menuValue = 2;}
   FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
-  //Serial.begin(115200);
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-  //Serial.println("");
-
-    
-  while (WiFi.status() != WL_CONNECTED) {
-      delay(250);
-  }
-  wifi = WiFi.RSSI();
-  Blynk.config(auth, IPAddress(192, 168, 50, 197), 8080);
-  Blynk.connect();
-  while ((!Blynk.connected()) && (millis() < 60000)){delay(250);}
-  Blynk.run();
-  
   sht31.begin(0x44);
   ads.setGain(GAIN_ONE);  // 1x gain   +/- 4.096V  1 bit = 2mV      0.125mV
   ads.begin();
@@ -161,6 +146,21 @@ void setup(void) {
   adc3 = ads.readADC_SingleEnded(3);
   volts2 = ads.computeVolts(adc2)*2.0;
   volts3 = ads.computeVolts(adc3)*2.0;
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+
+
+    
+  while (WiFi.status() != WL_CONNECTED) {
+      delay(250);
+  }
+  wifi = WiFi.RSSI();
+  Blynk.config(auth, IPAddress(192, 168, 50, 197), 8080);
+  Blynk.connect();
+  while ((!Blynk.connected()) && (millis() < 15000)){delay(250);}
+  Blynk.run();
+  
+
 
   Blynk.virtualWrite(V1, tempSHT);
   Blynk.run();
