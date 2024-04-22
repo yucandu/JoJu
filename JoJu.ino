@@ -223,7 +223,7 @@ void setup(void) {
     hours = timeinfo.tm_hour;
     mins = timeinfo.tm_min;
     secs = timeinfo.tm_sec;
-    terminal.println("***JoJu 1.2 STARTED***");
+    terminal.println("***JoJu 1.3 STARTED***");
     terminal.print("Connected to ");
     terminal.println(ssid);
     terminal.print("IP address: ");
