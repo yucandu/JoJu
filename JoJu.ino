@@ -5,15 +5,28 @@
 #include <ESPAsyncWebServer.h>
 #include <AsyncElegantOTA.h>
 #include "time.h"
-#include "Adafruit_SHT31.h"
 #include <Adafruit_ADS1X15.h>
 #include <FastLED.h>
 #include <Preferences.h>
+#include <Wire.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <Adafruit_INA219.h>
+
+#define ONE_WIRE_BUS 1
+
+// Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+OneWire oneWire(ONE_WIRE_BUS);
+
+// Pass our oneWire reference to Dallas Temperature. 
+DallasTemperature sensors(&oneWire);
+
+
+
+Adafruit_INA219 ina219;
 
 Preferences preferences;
 
-
-#define BUTTON_PIN 0
 #define LED_PIN 2
 
 #define NUM_LEDS 1
@@ -21,7 +34,6 @@ CRGB leds[NUM_LEDS];
 
 Adafruit_ADS1115 ads;
 
-Adafruit_SHT31 sht31 = Adafruit_SHT31();
 
 const char* ssid = "mikesnet";
 const char* password = "springchicken";
@@ -41,6 +53,12 @@ float wifi;
 bool buttonstart = false;
 bool ledon = false;
 bool needssaving = false;
+
+  float shuntvoltage = 0;
+  float busvoltage = 0;
+  float current_mA = 0;
+  float loadvoltage = 0;
+  float power_mW = 0;
 
 char auth[] = "fEZlZOio7CS1nBXNm3A8HR5DysrzIoYW";
 
@@ -126,8 +144,8 @@ void printLocalTime() {
 
 void goToSleep(){
     //esp_deep_sleep_enable_gpio_wakeup(1, ESP_GPIO_WAKEUP_GPIO_LOW);
-    WiFi.disconnect();
-    delay(1);
+    //WiFi.disconnect();
+    //delay(1);
     esp_sleep_enable_timer_wakeup(55000000); // 50 sec
     esp_deep_sleep_start(); 
     delay(1000);
@@ -137,42 +155,66 @@ void setup(void) {
   setCpuFrequencyMhz(80);
   delay(2);
   FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
-  sht31.begin(0x44);
+  sensors.begin();
+  sensors.requestTemperatures(); 
+  tempSHT = sensors.getTempCByIndex(0);
   ads.setGain(GAIN_ONE);  // 1x gain   +/- 4.096V  1 bit = 2mV      0.125mV
   ads.begin();
-  tempSHT = sht31.readTemperature();
-  humSHT = sht31.readHumidity();
-  adc2 = ads.readADC_SingleEnded(2);
-  adc3 = ads.readADC_SingleEnded(3);
+  adc2 = ads.readADC_SingleEnded(0);
+  adc3 = ads.readADC_SingleEnded(1);
   volts2 = ads.computeVolts(adc2)*2.0;
   volts3 = ads.computeVolts(adc3)*2.0;
+  ina219.begin();
+  ina219.setCalibration_16V_400mA();
+
+  shuntvoltage = ina219.getShuntVoltage_mV();
+  busvoltage = ina219.getBusVoltage_V();
+  current_mA = ina219.getCurrent_mA();
+  power_mW = ina219.getPower_mW();
+  loadvoltage = busvoltage + (shuntvoltage / 1000);
+
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 
 
     
-  while (WiFi.status() != WL_CONNECTED) {
+  while ((WiFi.status() != WL_CONNECTED) && (millis() < 15000)) {
       delay(250);
   }
   wifi = WiFi.RSSI();
   Blynk.config(auth, IPAddress(192, 168, 50, 197), 8080);
   Blynk.connect();
   while ((!Blynk.connected()) && (millis() < 15000)){delay(250);}
-  Blynk.run();
+  if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
   
 
 
   Blynk.virtualWrite(V1, tempSHT);
-  Blynk.run();
-  Blynk.virtualWrite(V2, humSHT);
-  Blynk.run();
+  if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
+  //Blynk.virtualWrite(V2, humSHT);
+  //if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
   Blynk.virtualWrite(V3, volts2);
-  Blynk.run();
+  if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
   Blynk.virtualWrite(V4, volts3);
-  Blynk.run();
+  if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
   Blynk.virtualWrite(V5, wifi);
-  Blynk.run();
-
+  if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
+  Blynk.virtualWrite(V21, shuntvoltage);
+  if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
+  Blynk.virtualWrite(V22, busvoltage);
+  if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
+  Blynk.virtualWrite(V23, current_mA);
+  if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
+  Blynk.virtualWrite(V24, power_mW);
+  if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
+  Blynk.virtualWrite(V25, loadvoltage);
+  if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
+  Blynk.virtualWrite(V25, loadvoltage);
+  if (WiFi.status() == WL_CONNECTED) {Blynk.run();} 
+   
+  
+  
+  
   if (buttonstart) {
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
@@ -197,11 +239,11 @@ void setup(void) {
     server.begin();
     terminal.println("HTTP server started");
     terminal.flush();
-    Blynk.run();
+    if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
   }
-  Blynk.run();
+  if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
 
-  delay(500);
+  //delay(500);
   if (!buttonstart){
     pinMode(LED_PIN, INPUT);
     goToSleep();
@@ -216,19 +258,28 @@ void setup(void) {
 void loop() {
   if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
 
-  every(10000){
-    tempSHT = sht31.readTemperature();
-    humSHT = sht31.readHumidity();
-    adc2 = ads.readADC_SingleEnded(2);
-    adc3 = ads.readADC_SingleEnded(3);
+  every(5000){
+    sensors.requestTemperatures(); 
+    tempSHT = sensors.getTempCByIndex(0);
+    adc2 = ads.readADC_SingleEnded(0);
+    adc3 = ads.readADC_SingleEnded(1);
     volts2 = ads.computeVolts(adc2)*2.0;
     volts3 = ads.computeVolts(adc3)*2.0;
+    shuntvoltage = ina219.getShuntVoltage_mV();
+    busvoltage = ina219.getBusVoltage_V();
+    current_mA = ina219.getCurrent_mA();
+    power_mW = ina219.getPower_mW();
+    loadvoltage = busvoltage + (shuntvoltage / 1000);
     Blynk.virtualWrite(V1, tempSHT);
-    Blynk.virtualWrite(V2, humSHT);
+    //Blynk.virtualWrite(V2, humSHT);
     Blynk.virtualWrite(V3, volts2);
     Blynk.virtualWrite(V4, volts3);
     Blynk.virtualWrite(V5, WiFi.RSSI());
-
+    Blynk.virtualWrite(V21, shuntvoltage);
+    Blynk.virtualWrite(V22, busvoltage);
+    Blynk.virtualWrite(V23, current_mA);
+    Blynk.virtualWrite(V24, power_mW);
+    Blynk.virtualWrite(V25, loadvoltage);
     
   }
 
