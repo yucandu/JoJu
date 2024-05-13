@@ -13,6 +13,7 @@
 #include <DallasTemperature.h>
 #include <Adafruit_INA219.h>
 
+
 #define ONE_WIRE_BUS 1
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
@@ -20,7 +21,6 @@ OneWire oneWire(ONE_WIRE_BUS);
 
 // Pass our oneWire reference to Dallas Temperature. 
 DallasTemperature sensors(&oneWire);
-
 
 
 Adafruit_INA219 ina219;
@@ -152,8 +152,7 @@ void goToSleep(){
 }
 
 void setup(void) {
-  setCpuFrequencyMhz(80);
-  delay(2);
+  float tempinC = temperatureRead();
   FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
   sensors.begin();
   sensors.requestTemperatures(); 
@@ -173,6 +172,10 @@ void setup(void) {
   power_mW = ina219.getPower_mW();
   loadvoltage = busvoltage + (shuntvoltage / 1000);
 
+
+  
+
+
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 
@@ -191,8 +194,8 @@ void setup(void) {
 
   Blynk.virtualWrite(V1, tempSHT);
   if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
-  //Blynk.virtualWrite(V2, humSHT);
-  //if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
+  Blynk.virtualWrite(V2, tempinC);
+  if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
   Blynk.virtualWrite(V3, volts2);
   if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
   Blynk.virtualWrite(V4, volts3);
