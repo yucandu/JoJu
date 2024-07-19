@@ -46,7 +46,7 @@ int zebraR, zebraG, zebraB, menuValue;
 int sliderValue = 255;
 
 float tempSHT, humSHT;
-int16_t adc0, adc1, adc2, adc3;
+int16_t adc0, adc1, adc2, adc3, soil;
 float volts0, volts1, volts2, volts3;
 float wifi;
 
@@ -77,6 +77,7 @@ BLYNK_WRITE(V10) {
     terminal.println("reset");
     terminal.println("ledon");
     terminal.println("ledoff");
+    terminal.println("soil");
     terminal.println("==End of list.==");
   }
   if (String("wifi") == param.asStr()) {
@@ -101,7 +102,14 @@ BLYNK_WRITE(V10) {
   if (String("ledoff") == param.asStr()) {
     terminal.println("Turning LED on.");
     terminal.flush();
-    ledon = false;
+    ledon = false; 
+  }
+  if (String("soil") == param.asStr()) {
+    soil = ads.readADC_SingleEnded(3);
+    terminal.print("Soil: ");
+    terminal.println(soil);
+    terminal.flush();
+    
   }
 }
 
@@ -161,6 +169,7 @@ void setup(void) {
   ads.begin();
   adc2 = ads.readADC_SingleEnded(0);
   adc3 = ads.readADC_SingleEnded(1);
+  soil = ads.readADC_SingleEnded(3);
   volts2 = ads.computeVolts(adc2)*2.0;
   volts3 = ads.computeVolts(adc3)*2.0;
   ina219.begin();
@@ -202,6 +211,8 @@ void setup(void) {
   if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
   Blynk.virtualWrite(V5, wifi);
   if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
+  Blynk.virtualWrite(V26, soil);
+  if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
   Blynk.virtualWrite(V21, shuntvoltage);
   if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
   Blynk.virtualWrite(V22, busvoltage);
@@ -212,6 +223,7 @@ void setup(void) {
   if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
   Blynk.virtualWrite(V25, loadvoltage);
   if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
+
   Blynk.virtualWrite(V25, loadvoltage);
   if (WiFi.status() == WL_CONNECTED) {Blynk.run();} 
    
@@ -266,6 +278,7 @@ void loop() {
     tempSHT = sensors.getTempCByIndex(0);
     adc2 = ads.readADC_SingleEnded(0);
     adc3 = ads.readADC_SingleEnded(1);
+    soil = ads.readADC_SingleEnded(3);
     volts2 = ads.computeVolts(adc2)*2.0;
     volts3 = ads.computeVolts(adc3)*2.0;
     shuntvoltage = ina219.getShuntVoltage_mV();
@@ -283,7 +296,7 @@ void loop() {
     Blynk.virtualWrite(V23, current_mA);
     Blynk.virtualWrite(V24, power_mW);
     Blynk.virtualWrite(V25, loadvoltage);
-    
+    Blynk.virtualWrite(V26, soil);
   }
 
 
