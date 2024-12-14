@@ -16,8 +16,10 @@ ADS1115_WE adc = ADS1115_WE(I2C_ADDRESS);
 const char* ssid = "mikesnet";
 const char* password = "springchicken";
 
-#define CAMERA_PIN 0
-//#define I2C_PIN 1
+#define CAMERA_PIN     0
+#define SLEEP_MINS     5       * 60 //5 minutes in seconds
+#define TIMEOUT_MINS   5       * 60 * 1000 //30 minutes in milliseconds
+
 
 const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = -18000;  //Replace with your GMT offset (secs)
@@ -69,7 +71,7 @@ BLYNK_WRITE(V10) {
     terminal.flush();
     Blynk.run();
     delay(10);
-    gotosleep(300);
+    gotosleep(SLEEP_MINS);
   }
   if (String("print") == param.asStr()) {
     tempSHT = sht31.readTemperature();
@@ -236,7 +238,7 @@ void setup(void) {
     if (WiFi.status() == WL_CONNECTED) {Blynk.run();} 
   }
   else {
-    gotosleep(300);
+    gotosleep(SLEEP_MINS);
   }
 }
 
@@ -267,4 +269,6 @@ void loop() {
     Blynk.virtualWrite(V24, power_mW);
     Blynk.virtualWrite(V25, loadvoltage);
   }
+
+  if (millis() > TIMEOUT_MINS) {gotosleep(SLEEP_MINS);}
 }
