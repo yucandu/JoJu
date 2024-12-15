@@ -67,10 +67,16 @@ BLYNK_WRITE(V10) {
     printLocalTime();
   }
   if (String("sleep") == param.asStr()) {
-    terminal.println("Going to sleep.");
+    terminal.println("");
+    printLocalTime();
+    terminal.println("Going to sleep...");
+    digitalWrite(CAMERA_PIN, HIGH);
+    delay(500);
+    digitalWrite(CAMERA_PIN, LOW);
+    delay(100);
     terminal.flush();
     Blynk.run();
-    delay(10);
+    delay(100);
     gotosleep(SLEEP_MINS);
   }
   if (String("print") == param.asStr()) {
@@ -172,7 +178,7 @@ void setup(void) {
   loadvoltage = busvoltage + (shuntvoltage / 1000);
   
   pinMode(CAMERA_PIN, OUTPUT);
-
+  digitalWrite(CAMERA_PIN, LOW);
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   // Wait for connection
@@ -193,6 +199,7 @@ void setup(void) {
     Blynk.config(auth, IPAddress(192, 168, 50, 197), 8080);
   Blynk.connect();
   while ((!Blynk.connected()) && (millis() < 20000)){delay(250);}
+
 
   Blynk.virtualWrite(V1, tempSHT);
   if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
@@ -217,6 +224,7 @@ void setup(void) {
   if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
   boottime = millis();
   if (buttonstart) {
+
     ArduinoOTA.setHostname("Joju2");
     ArduinoOTA.begin();
     Serial.println("HTTP server started");
@@ -235,6 +243,9 @@ void setup(void) {
     terminal.print("Boot time: ");
     terminal.println(boottime);
     terminal.flush();
+    digitalWrite(CAMERA_PIN, HIGH);
+    delay(500);
+    digitalWrite(CAMERA_PIN, LOW);
     if (WiFi.status() == WL_CONNECTED) {Blynk.run();} 
   }
   else {
@@ -248,6 +259,19 @@ void loop() {
     digitalWrite(CAMERA_PIN, HIGH);
   } else {
     digitalWrite(CAMERA_PIN, LOW);
+  }
+  if (!buttonstart) {
+    terminal.println("");
+    printLocalTime();
+    terminal.println("Going to sleep...");
+    digitalWrite(CAMERA_PIN, HIGH);
+    delay(500);
+    digitalWrite(CAMERA_PIN, LOW);
+    delay(100);
+    terminal.flush();
+    Blynk.run();
+    delay(100);
+    gotosleep(SLEEP_MINS);    
   }
   ArduinoOTA.handle();
   every(10000) {
