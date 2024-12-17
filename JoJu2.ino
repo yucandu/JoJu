@@ -18,7 +18,7 @@ const char* password = "springchicken";
 
 #define CAMERA_PIN     0
 #define SLEEP_MINS     5       * 60 //5 minutes in seconds
-#define TIMEOUT_MINS   5       * 60 * 1000 //30 minutes in milliseconds
+#define TIMEOUT_MINS   30       * 60 * 1000 //30 minutes in milliseconds
 
 
 const char* ntpServer = "pool.ntp.org";
@@ -42,6 +42,7 @@ float loadvoltage = 0;
 float power_mW = 0;
 
 bool buttonstart = false;
+bool cameraison = false;
 
 WidgetTerminal terminal(V10);
 
@@ -55,6 +56,11 @@ BLYNK_WRITE(V10) {
     terminal.println("wifi");
     terminal.println("sleep");
     terminal.println("print");
+    terminal.println("camera");
+    terminal.println("FHD");
+    terminal.println("HD");
+    terminal.println("VGA");
+    terminal.println("QVGA");
     terminal.println("==End of list.==");
   }
   if (String("wifi") == param.asStr()) {
@@ -89,6 +95,15 @@ BLYNK_WRITE(V10) {
     terminal.println(volts3);
     terminal.print("INA mA: ");
     terminal.println(current_mA);
+  }
+  if (String("camera") == param.asStr()) {
+    digitalWrite(CAMERA_PIN, HIGH);
+    delay(500);
+    digitalWrite(CAMERA_PIN, LOW);
+    delay(100);
+    cameraison = !cameraison;
+    terminal.print("Camera status is now: ");
+    terminal.println(cameraison);
   }
   terminal.flush();
 }
@@ -130,8 +145,11 @@ BLYNK_WRITE(V12) {
   if (param.asInt() == 0) { camerapower = false; }
 }
 
+
+
 BLYNK_CONNECTED() {
   Blynk.syncVirtual(V11);
+  Blynk.syncVirtual(V12);
 }
 
 
@@ -243,9 +261,14 @@ void setup(void) {
     terminal.print("Boot time: ");
     terminal.println(boottime);
     terminal.flush();
-    digitalWrite(CAMERA_PIN, HIGH);
-    delay(500);
-    digitalWrite(CAMERA_PIN, LOW);
+    if (camerapower) {
+      cameraison = true;
+      digitalWrite(CAMERA_PIN, HIGH);
+      delay(500);
+      digitalWrite(CAMERA_PIN, LOW);
+      terminal.println("Turning camera on...");
+    }
+    
     if (WiFi.status() == WL_CONNECTED) {Blynk.run();} 
   }
   else {
@@ -255,19 +278,18 @@ void setup(void) {
 
 void loop() {
   Blynk.run();
-  if (camerapower) {
-    digitalWrite(CAMERA_PIN, HIGH);
-  } else {
-    digitalWrite(CAMERA_PIN, LOW);
-  }
+  
+
   if (!buttonstart) {
     terminal.println("");
     printLocalTime();
     terminal.println("Going to sleep...");
-    digitalWrite(CAMERA_PIN, HIGH);
-    delay(500);
-    digitalWrite(CAMERA_PIN, LOW);
-    delay(100);
+    if (cameraison) {
+      digitalWrite(CAMERA_PIN, HIGH);
+      delay(500);
+      digitalWrite(CAMERA_PIN, LOW);
+      delay(100);
+    }
     terminal.flush();
     Blynk.run();
     delay(100);
@@ -294,5 +316,23 @@ void loop() {
     Blynk.virtualWrite(V25, loadvoltage);
   }
 
-  if (millis() > TIMEOUT_MINS) {gotosleep(SLEEP_MINS);}
+  if (millis() > TIMEOUT_MINS) {
+      Blynk.virtualWrite(V11, LOW);
+      Blynk.run();
+      Blynk.virtualWrite(V11, LOW);
+      Blynk.run();
+      terminal.println("");
+      printLocalTime();
+      terminal.println("Going to sleep...");
+      if (cameraison) {
+        digitalWrite(CAMERA_PIN, HIGH);
+        delay(500);
+        digitalWrite(CAMERA_PIN, LOW);
+        delay(100);
+      }
+      terminal.flush();
+      Blynk.run();
+      delay(100);
+      gotosleep(SLEEP_MINS);   
+    }
 }
