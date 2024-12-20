@@ -108,6 +108,14 @@ BLYNK_WRITE(V10) {
     terminal.print("Camera status is now: ");
     terminal.println(cameraison);
   }
+    if (String("fcamera") == param.asStr()) {
+    digitalWrite(CAMERA_PIN, HIGH);
+    delay(500);
+    digitalWrite(CAMERA_PIN, LOW);
+    delay(100);
+    terminal.print("Camera toggled but status is now: ");
+    terminal.println(cameraison);
+  }
   terminal.flush();
 }
 
@@ -145,20 +153,24 @@ BLYNK_WRITE(V11)
 
 BLYNK_WRITE(V12) {
   if (param.asInt() == 1) { 
-      cameraison = true;
-      digitalWrite(CAMERA_PIN, HIGH);
-      delay(500);
-      digitalWrite(CAMERA_PIN, LOW);
-      terminal.println("Turning camera on...");
-      terminal.flush();
+    if (buttonstart) {
+          cameraison = true;
+          digitalWrite(CAMERA_PIN, HIGH);
+          delay(500);
+          digitalWrite(CAMERA_PIN, LOW);
+          terminal.println("Turning camera on...");
+          terminal.flush();
+        }
       }
   if (param.asInt() == 0) { 
-    cameraison = false;
-      digitalWrite(CAMERA_PIN, HIGH);
-      delay(500);
-      digitalWrite(CAMERA_PIN, LOW);
-      terminal.println("Turning camera off...");
-      terminal.flush();
+    if (cameraison) {
+        cameraison = false;
+        digitalWrite(CAMERA_PIN, HIGH);
+        delay(500);
+        digitalWrite(CAMERA_PIN, LOW);
+        terminal.println("Turning camera off...");
+        terminal.flush();
+      }
     }
 }
 
