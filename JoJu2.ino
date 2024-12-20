@@ -18,7 +18,7 @@ const char* password = "springchicken";
 
 #define CAMERA_PIN     0
 #define SLEEP_MINS     5       * 60 //5 minutes in seconds
-#define TIMEOUT_MINS   30       * 60 * 1000 //30 minutes in milliseconds
+#define TIMEOUT_MINS   120       * 60 * 1000 //30 minutes in milliseconds
 
 
 const char* ntpServer = "pool.ntp.org";
@@ -27,6 +27,8 @@ const int daylightOffset_sec = 0;   //Replace with your daylight offset (secs)
 int hours, mins, secs;
 bool camerapower = false;
 char auth[] = "fEZlZOio7CS1nBXNm3A8HR5DysrzIoYW";
+char remoteAuth2[] = "8_-CN2rm4ki9P3i_NkPhxIbCiKd5RXhK"; //hubert clock auth
+char remoteAuth3[] = "qS5PQ8pvrbYzXdiA4I6uLEWYfeQrOcM4"; //indiana
 
 float tempSHT, humSHT;
 int16_t adc0, adc1, adc2, adc3, soil;
@@ -45,7 +47,8 @@ bool buttonstart = false;
 bool cameraison = false;
 
 WidgetTerminal terminal(V10);
-
+WidgetBridge bridge2(V42);
+WidgetBridge bridge3(V43);
 #define every(interval) \
   static uint32_t __every__##interval = millis(); \
   if (millis() - __every__##interval >= interval && (__every__##interval = millis()))
@@ -141,8 +144,22 @@ BLYNK_WRITE(V11)
 
 
 BLYNK_WRITE(V12) {
-  if (param.asInt() == 1) { camerapower = true; }
-  if (param.asInt() == 0) { camerapower = false; }
+  if (param.asInt() == 1) { 
+      cameraison = true;
+      digitalWrite(CAMERA_PIN, HIGH);
+      delay(500);
+      digitalWrite(CAMERA_PIN, LOW);
+      terminal.println("Turning camera on...");
+      terminal.flush();
+      }
+  if (param.asInt() == 0) { 
+    cameraison = false;
+      digitalWrite(CAMERA_PIN, HIGH);
+      delay(500);
+      digitalWrite(CAMERA_PIN, LOW);
+      terminal.println("Turning camera off...");
+      terminal.flush();
+    }
 }
 
 
@@ -150,6 +167,8 @@ BLYNK_WRITE(V12) {
 BLYNK_CONNECTED() {
   Blynk.syncVirtual(V11);
   Blynk.syncVirtual(V12);
+  bridge2.setAuthToken (remoteAuth2);
+  bridge3.setAuthToken (remoteAuth3);
 }
 
 
@@ -201,7 +220,7 @@ void setup(void) {
   WiFi.begin(ssid, password);
   // Wait for connection
   while ((WiFi.status() != WL_CONNECTED) && (millis() < 20000)) {
-    if (millis() > 10000) {
+    if (millis() > 15000) {
       WiFi.setTxPower(WIFI_POWER_8_5dBm);
       Serial.print("!");
     }
@@ -218,7 +237,8 @@ void setup(void) {
   Blynk.connect();
   while ((!Blynk.connected()) && (millis() < 20000)){delay(250);}
 
-
+  bridge2.virtualWrite(V42, tempSHT);
+  bridge3.virtualWrite(V42, tempSHT);
   Blynk.virtualWrite(V1, tempSHT);
   if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
   Blynk.virtualWrite(V3, volts2);
@@ -252,7 +272,7 @@ void setup(void) {
     hours = timeinfo.tm_hour;
     mins = timeinfo.tm_min;
     secs = timeinfo.tm_sec;
-    terminal.println("***JOJU 2.1 STARTED***");
+    terminal.println("***JOJU 2.2 STARTED***");
     terminal.print("Connected to ");
     terminal.println(ssid);
     terminal.print("IP address: ");
@@ -261,13 +281,7 @@ void setup(void) {
     terminal.print("Boot time: ");
     terminal.println(boottime);
     terminal.flush();
-    if (camerapower) {
-      cameraison = true;
-      digitalWrite(CAMERA_PIN, HIGH);
-      delay(500);
-      digitalWrite(CAMERA_PIN, LOW);
-      terminal.println("Turning camera on...");
-    }
+
     
     if (WiFi.status() == WL_CONNECTED) {Blynk.run();} 
   }
