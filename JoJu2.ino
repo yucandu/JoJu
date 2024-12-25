@@ -7,6 +7,9 @@
 #include <ADS1115_WE.h>
 #include <Adafruit_INA219.h>
 #include "Adafruit_SHT31.h"
+#include "Adafruit_MAX1704X.h"
+
+Adafruit_MAX17048 maxlipo;
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
 Adafruit_INA219 ina219;
 #define I2C_ADDRESS 0x48
@@ -33,6 +36,7 @@ char remoteAuth3[] = "qS5PQ8pvrbYzXdiA4I6uLEWYfeQrOcM4"; //indiana
 float tempSHT, humSHT;
 int16_t adc0, adc1, adc2, adc3, soil;
 float volts0, volts1, volts2, volts3;
+
 float wifi;
 unsigned long boottime;
 
@@ -225,7 +229,7 @@ void setup(void) {
   current_mA = ina219.getCurrent_mA();
   power_mW = ina219.getPower_mW();
   loadvoltage = busvoltage + (shuntvoltage / 1000);
-  
+  maxlipo.begin();
   pinMode(CAMERA_PIN, OUTPUT);
   digitalWrite(CAMERA_PIN, LOW);
   WiFi.mode(WIFI_STA);
@@ -235,6 +239,8 @@ void setup(void) {
     if (millis() > 15000) {
       WiFi.setTxPower(WIFI_POWER_8_5dBm);
       Serial.print("!");
+
+
     }
     delay(500);
     Serial.print(".");
@@ -248,7 +254,7 @@ void setup(void) {
     Blynk.config(auth, IPAddress(192, 168, 50, 197), 8080);
   Blynk.connect();
   while ((!Blynk.connected()) && (millis() < 20000)){delay(250);}
-
+  if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
   bridge2.virtualWrite(V42, tempSHT);
   bridge3.virtualWrite(V42, tempSHT);
   Blynk.virtualWrite(V1, tempSHT);
@@ -270,8 +276,14 @@ void setup(void) {
   Blynk.virtualWrite(V25, loadvoltage);
   if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
 
-  Blynk.virtualWrite(V25, loadvoltage);
-  if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
+    Blynk.virtualWrite(V30, maxlipo.cellVoltage());
+    if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
+    Blynk.virtualWrite(V31, maxlipo.cellPercent());
+    if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
+    Blynk.virtualWrite(V32, maxlipo.chargeRate());
+    if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
+    Blynk.virtualWrite(V32, maxlipo.chargeRate());
+    if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
   boottime = millis();
   if (buttonstart) {
 
@@ -292,6 +304,11 @@ void setup(void) {
     printLocalTime();
     terminal.print("Boot time: ");
     terminal.println(boottime);
+
+  terminal.print(F("Found MAX17048"));
+  terminal.print(F(" with Chip ID: 0x")); 
+  terminal.println(maxlipo.getChipID(), HEX);
+
     terminal.flush();
 
     
@@ -311,6 +328,7 @@ void loop() {
     printLocalTime();
     terminal.println("Going to sleep...");
     if (cameraison) {
+      terminal.println("Turning off camera...");
       digitalWrite(CAMERA_PIN, HIGH);
       delay(500);
       digitalWrite(CAMERA_PIN, LOW);
@@ -331,6 +349,8 @@ void loop() {
     current_mA = ina219.getCurrent_mA();
     power_mW = ina219.getPower_mW();
     loadvoltage = busvoltage + (shuntvoltage / 1000);
+      bridge2.virtualWrite(V42, tempSHT);
+  bridge3.virtualWrite(V42, tempSHT);
     Blynk.virtualWrite(V1, tempSHT);
     Blynk.virtualWrite(V3, volts2);
     Blynk.virtualWrite(V4, volts3);
@@ -340,6 +360,10 @@ void loop() {
     Blynk.virtualWrite(V23, current_mA);
     Blynk.virtualWrite(V24, power_mW);
     Blynk.virtualWrite(V25, loadvoltage);
+    Blynk.virtualWrite(V30, maxlipo.cellVoltage());
+    Blynk.virtualWrite(V31, maxlipo.cellPercent());
+    Blynk.virtualWrite(V32, maxlipo.chargeRate());
+
   }
 
   if (millis() > TIMEOUT_MINS) {
@@ -351,6 +375,7 @@ void loop() {
       printLocalTime();
       terminal.println("Going to sleep...");
       if (cameraison) {
+        terminal.println("Turning off camera...");
         digitalWrite(CAMERA_PIN, HIGH);
         delay(500);
         digitalWrite(CAMERA_PIN, LOW);
