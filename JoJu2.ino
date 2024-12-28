@@ -22,6 +22,7 @@ const char* password = "springchicken";
 #define CAMERA_PIN     0
 #define SLEEP_MINS     5       * 60 //5 minutes in seconds
 #define TIMEOUT_MINS   120       * 60 * 1000 //30 minutes in milliseconds
+#define THRESHOLD_V    3.4
 
 
 const char* ntpServer = "pool.ntp.org";
@@ -244,7 +245,7 @@ void setup(void) {
   loadvoltage = busvoltage + (shuntvoltage / 1000);
   maxlipo.begin();
   maxlipo.sleep(false);
-  maxlipo.setResetVoltage(3.5);
+  if (maxlipo.getResetVoltage() != THRESHOLD_V){maxlipo.setResetVoltage(THRESHOLD_V);}
   pinMode(CAMERA_PIN, OUTPUT);
   digitalWrite(CAMERA_PIN, LOW);
   WiFi.mode(WIFI_STA);
