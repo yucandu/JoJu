@@ -57,17 +57,23 @@ WidgetBridge bridge3(V43);
   static uint32_t __every__##interval = millis(); \
   if (millis() - __every__##interval >= interval && (__every__##interval = millis()))
 
+bool stayon = false;
+
 BLYNK_WRITE(V10) {
   if (String("help") == param.asStr()) {
     terminal.println("==List of available commands:==");
     terminal.println("wifi");
+    terminal.println("cwifi");
     terminal.println("sleep");
     terminal.println("print");
     terminal.println("camera");
-    terminal.println("FHD");
-    terminal.println("HD");
+    terminal.println("fcamera");
+    terminal.println("UXGA");
+    terminal.println("SXGA");
     terminal.println("VGA");
     terminal.println("QVGA");
+    terminal.println("q");
+    terminal.println("stayon");
     terminal.println("==End of list.==");
   }
   if (String("wifi") == param.asStr()) {
@@ -120,6 +126,12 @@ BLYNK_WRITE(V10) {
     terminal.print("Camera toggled but status is now: ");
     terminal.println(cameraison);
   }
+  if (String("stayon") == param.asStr()) {
+    terminal.println("");
+    terminal.println("Forcing Joju to stay on.");
+    stayon = true;
+  }
+
   terminal.flush();
 }
 
@@ -128,6 +140,7 @@ void gotosleep(int sleeptimeSecs) {
   WiFi.disconnect();
   ina219.powerSave(1);
   SPI.end();
+  maxlipo.sleep(true);
   Wire.end();
   pinMode(SS, INPUT_PULLUP);
   pinMode(6, INPUT_PULLUP);
@@ -230,6 +243,8 @@ void setup(void) {
   power_mW = ina219.getPower_mW();
   loadvoltage = busvoltage + (shuntvoltage / 1000);
   maxlipo.begin();
+  maxlipo.sleep(false);
+  maxlipo.setResetVoltage(3.5);
   pinMode(CAMERA_PIN, OUTPUT);
   digitalWrite(CAMERA_PIN, LOW);
   WiFi.mode(WIFI_STA);
@@ -366,7 +381,7 @@ void loop() {
 
   }
 
-  if (millis() > TIMEOUT_MINS) {
+  if ((millis() > TIMEOUT_MINS) && (!stayon))  {
       Blynk.virtualWrite(V11, LOW);
       Blynk.run();
       Blynk.virtualWrite(V11, LOW);
