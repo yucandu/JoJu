@@ -7,9 +7,7 @@
 #include <ADS1115_WE.h>
 #include <Adafruit_INA219.h>
 #include "Adafruit_SHT31.h"
-#include "Adafruit_MAX1704X.h"
 
-Adafruit_MAX17048 maxlipo;
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
 Adafruit_INA219 ina219;
 #define I2C_ADDRESS 0x48
@@ -20,7 +18,7 @@ const char* ssid = "mikesnet";
 const char* password = "springchicken";
 
 #define CAMERA_PIN     0
-#define SLEEP_MINS     5       * 60 //5 minutes in seconds
+#define SLEEP_MINS     2       * 60 //5 minutes in seconds
 #define TIMEOUT_MINS   120       * 60 * 1000 //30 minutes in milliseconds
 #define THRESHOLD_V    3.4
 
@@ -141,18 +139,20 @@ void gotosleep(int sleeptimeSecs) {
   WiFi.disconnect();
   ina219.powerSave(1);
   SPI.end();
-  maxlipo.sleep(true);
+  //maxlipo.sleep(true);
   Wire.end();
-  pinMode(SS, INPUT_PULLUP);
-  pinMode(6, INPUT_PULLUP);
-  pinMode(4, INPUT_PULLUP);
-  pinMode(8, INPUT_PULLUP);
-  pinMode(9, INPUT_PULLUP);
+  pinMode(SS, INPUT);
+  pinMode(6, INPUT);
+  pinMode(4, INPUT);
+  pinMode(8, INPUT);
+  pinMode(9, INPUT);
   //  pinMode(I2C_PIN, INPUT );
-  pinMode(2, INPUT_PULLUP);
-  pinMode(3, INPUT_PULLUP);
+  pinMode(2, INPUT);
+  pinMode(3, INPUT);
+  pinMode(15, INPUT);
+  pinMode(14, INPUT);
 
-  pinMode(5, INPUT_PULLUP);
+  pinMode(5, INPUT);
   pinMode(CAMERA_PIN, INPUT);
 
   esp_sleep_enable_timer_wakeup(sleeptimeSecs * 1000000ULL);
@@ -225,7 +225,7 @@ void setup(void) {
   //digitalWrite(I2C_PIN, HIGH);
   //delay(100);
   Serial.println("ADC init");
-  Wire.begin();
+  Wire.begin(15, 14);
   adc.init();
   adc.setVoltageRange_mV(ADS1115_RANGE_4096);
   volts3 = 2.0 * readChannel(ADS1115_COMP_3_GND);
@@ -243,9 +243,9 @@ void setup(void) {
   current_mA = ina219.getCurrent_mA();
   power_mW = ina219.getPower_mW();
   loadvoltage = busvoltage + (shuntvoltage / 1000);
-  maxlipo.begin();
-  maxlipo.sleep(false);
-  if (maxlipo.getResetVoltage() != THRESHOLD_V){maxlipo.setResetVoltage(THRESHOLD_V);}
+  //maxlipo.begin();
+  //maxlipo.sleep(false);
+  //if (maxlipo.getResetVoltage() != THRESHOLD_V){maxlipo.setResetVoltage(THRESHOLD_V);}
   pinMode(CAMERA_PIN, OUTPUT);
   digitalWrite(CAMERA_PIN, LOW);
   WiFi.mode(WIFI_STA);
@@ -291,15 +291,17 @@ void setup(void) {
   if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
   Blynk.virtualWrite(V25, loadvoltage);
   if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
+  Blynk.virtualWrite(V25, loadvoltage);
+  if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
 
-    Blynk.virtualWrite(V30, maxlipo.cellVoltage());
+    /*Blynk.virtualWrite(V30, maxlipo.cellVoltage());
     if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
     Blynk.virtualWrite(V31, maxlipo.cellPercent());
     if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
     Blynk.virtualWrite(V32, maxlipo.chargeRate());
     if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
     Blynk.virtualWrite(V32, maxlipo.chargeRate());
-    if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
+    if (WiFi.status() == WL_CONNECTED) {Blynk.run();}*/
   boottime = millis();
   if (buttonstart) {
 
@@ -321,9 +323,9 @@ void setup(void) {
     terminal.print("Boot time: ");
     terminal.println(boottime);
 
-  terminal.print(F("Found MAX17048"));
-  terminal.print(F(" with Chip ID: 0x")); 
-  terminal.println(maxlipo.getChipID(), HEX);
+ // terminal.print(F("Found MAX17048"));
+ // terminal.print(F(" with Chip ID: 0x")); 
+ // terminal.println(maxlipo.getChipID(), HEX);
 
     terminal.flush();
 
@@ -376,9 +378,9 @@ void loop() {
     Blynk.virtualWrite(V23, current_mA);
     Blynk.virtualWrite(V24, power_mW);
     Blynk.virtualWrite(V25, loadvoltage);
-    Blynk.virtualWrite(V30, maxlipo.cellVoltage());
-    Blynk.virtualWrite(V31, maxlipo.cellPercent());
-    Blynk.virtualWrite(V32, maxlipo.chargeRate());
+   // Blynk.virtualWrite(V30, maxlipo.cellVoltage());
+   // Blynk.virtualWrite(V31, maxlipo.cellPercent());
+   // Blynk.virtualWrite(V32, maxlipo.chargeRate());
 
   }
 
