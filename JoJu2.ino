@@ -18,6 +18,7 @@ const char* ssid = "mikesnet";
 const char* password = "springchicken";
 
 #define CAMERA_PIN     0
+#define TRANSISTOR_PIN 1
 #define SLEEP_MINS     2       * 60 //5 minutes in seconds
 #define TIMEOUT_MINS   120       * 60 * 1000 //30 minutes in milliseconds
 #define THRESHOLD_V    3.4
@@ -141,6 +142,10 @@ void gotosleep(int sleeptimeSecs) {
   SPI.end();
   //maxlipo.sleep(true);
   Wire.end();
+  digitalWrite(TRANSISTOR_PIN, LOW);
+  delay(10);
+  pinMode(TRANSISTOR_PIN, INPUT);
+  
   pinMode(SS, INPUT);
   pinMode(6, INPUT);
   pinMode(4, INPUT);
@@ -149,8 +154,8 @@ void gotosleep(int sleeptimeSecs) {
   //  pinMode(I2C_PIN, INPUT );
   pinMode(2, INPUT);
   pinMode(3, INPUT);
-  pinMode(15, INPUT);
-  pinMode(14, INPUT);
+  //pinMode(15, INPUT);
+  //pinMode(14, INPUT);
 
   pinMode(5, INPUT);
   pinMode(CAMERA_PIN, INPUT);
@@ -219,17 +224,29 @@ float readChannel(ADS1115_MUX channel) {
   return voltage;
 }
 
+int readChannelRaw(ADS1115_MUX channel) {
+  int raw = 0;
+  adc.setCompareChannels(channel);
+  adc.startSingleMeasurement();
+  while (adc.isBusy()) {}
+  raw = adc.getRawResult();  // alternative: getResult_mV for Millivolt
+  return raw;
+}
+
+
 void setup(void) {
   Serial.begin(115200);
-  //pinMode(I2C_PIN, OUTPUT);
-  //digitalWrite(I2C_PIN, HIGH);
-  //delay(100);
+  pinMode(TRANSISTOR_PIN, OUTPUT);
+  digitalWrite(TRANSISTOR_PIN, HIGH);
+  delay(100);
   Serial.println("ADC init");
-  Wire.begin(15, 14);
+  //Wire.begin(15, 14);
+  Wire.begin();
   adc.init();
   adc.setVoltageRange_mV(ADS1115_RANGE_4096);
   volts3 = 2.0 * readChannel(ADS1115_COMP_3_GND);
   volts2 = 2.0 * readChannel(ADS1115_COMP_2_GND);
+  soil = readChannelRaw(ADS1115_COMP_0_GND);
   Serial.println("SHT init");
   sht31.begin(0x44);
   Serial.println("INA init");
@@ -255,8 +272,6 @@ void setup(void) {
     if (millis() > 15000) {
       WiFi.setTxPower(WIFI_POWER_8_5dBm);
       Serial.print("!");
-
-
     }
     delay(500);
     Serial.print(".");
@@ -291,17 +306,12 @@ void setup(void) {
   if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
   Blynk.virtualWrite(V25, loadvoltage);
   if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
-  Blynk.virtualWrite(V25, loadvoltage);
+  Blynk.virtualWrite(V30, soil);
   if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
-
-    /*Blynk.virtualWrite(V30, maxlipo.cellVoltage());
-    if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
-    Blynk.virtualWrite(V31, maxlipo.cellPercent());
-    if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
-    Blynk.virtualWrite(V32, maxlipo.chargeRate());
-    if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
-    Blynk.virtualWrite(V32, maxlipo.chargeRate());
-    if (WiFi.status() == WL_CONNECTED) {Blynk.run();}*/
+  Blynk.virtualWrite(V31, millis());
+  if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
+  Blynk.virtualWrite(V31, millis());
+  if (WiFi.status() == WL_CONNECTED) {Blynk.run();}
   boottime = millis();
   if (buttonstart) {
 
@@ -358,17 +368,18 @@ void loop() {
     gotosleep(SLEEP_MINS);    
   }
   ArduinoOTA.handle();
-  every(10000) {
+  every(5000) {
     tempSHT = sht31.readTemperature();
     volts3 = 2.0 * readChannel(ADS1115_COMP_3_GND);
     volts2 = 2.0 * readChannel(ADS1115_COMP_2_GND);
+    soil = readChannelRaw(ADS1115_COMP_0_GND);
     shuntvoltage = ina219.getShuntVoltage_mV();
     busvoltage = ina219.getBusVoltage_V();
     current_mA = ina219.getCurrent_mA();
     power_mW = ina219.getPower_mW();
     loadvoltage = busvoltage + (shuntvoltage / 1000);
-      bridge2.virtualWrite(V42, tempSHT);
-  bridge3.virtualWrite(V42, tempSHT);
+    bridge2.virtualWrite(V42, tempSHT);
+    bridge3.virtualWrite(V42, tempSHT);
     Blynk.virtualWrite(V1, tempSHT);
     Blynk.virtualWrite(V3, volts2);
     Blynk.virtualWrite(V4, volts3);
@@ -378,6 +389,7 @@ void loop() {
     Blynk.virtualWrite(V23, current_mA);
     Blynk.virtualWrite(V24, power_mW);
     Blynk.virtualWrite(V25, loadvoltage);
+    Blynk.virtualWrite(V30, soil);
    // Blynk.virtualWrite(V30, maxlipo.cellVoltage());
    // Blynk.virtualWrite(V31, maxlipo.cellPercent());
    // Blynk.virtualWrite(V32, maxlipo.chargeRate());
